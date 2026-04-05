@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/yourname/semantic-search/internal/models"
+	"github.com/smittal2001/semantic-search/internal/models"
 )
 
 // Cache wraps Redis and provides typed get/set for search results.
