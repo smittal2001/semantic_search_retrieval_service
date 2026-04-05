@@ -6,7 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
-	"github.com/yourname/semantic-search/internal/models"
+	"github.com/smittal2001/semantic-search/internal/models"
 )
 
 // DB wraps a pgxpool.Pool and exposes typed query methods.
