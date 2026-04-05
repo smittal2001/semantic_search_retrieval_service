@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/yourname/semantic-search/internal/auth"
-	"github.com/yourname/semantic-search/internal/models"
+	"github.com/smittal2001/semantic-search/internal/auth"
+	"github.com/smittal2001/semantic-search/internal/models"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -95,7 +95,7 @@ func TestTenantFromCtx_Present(t *testing.T) {
 }
 
 // TestTenantFromCtx_Missing verifies extraction panics when tenant is absent.
-// This is a programming error (middleware not applied) — panic is correct.
+// This is a programming error (middleware not applied) error is correct.
 func TestTenantFromCtx_Missing(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
