@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
-	"github.com/yourname/semantic-search/internal/models"
+	"github.com/smittal2001/semantic-search/internal/models"
 )
 
 // Queue wraps the AWS SQS client with typed publish/receive methods.
