@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/semantic-search/internal/embed"
+	"github.com/smittal2001/semantic-search/internal/embed"
 )
 
 // fakeEmbedServer returns a test HTTP server that mimics the OpenAI embed API.
