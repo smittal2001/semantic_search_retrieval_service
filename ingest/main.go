@@ -12,12 +12,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/yourname/semantic-search/internal/auth"
-	"github.com/yourname/semantic-search/internal/config"
-	"github.com/yourname/semantic-search/internal/db"
-	"github.com/yourname/semantic-search/internal/models"
-	"github.com/yourname/semantic-search/internal/queue"
-	pb "github.com/yourname/semantic-search/proto"
+	"github.com/smittal2001/semantic-search/internal/auth"
+	"github.com/smittal2001/semantic-search/internal/config"
+	"github.com/smittal2001/semantic-search/internal/db"
+	"github.com/smittal2001/semantic-search/internal/models"
+	"github.com/smittal2001/semantic-search/internal/queue"
+	pb "github.com/smittal2001/semantic-search/proto"
 )
 
 // ingestServer implements the IngestService gRPC interface.
