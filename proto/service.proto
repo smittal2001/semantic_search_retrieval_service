@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package semantic.v1;
 
-option go_package = "github.com/yourname/semantic-search/proto";
+option go_package = "github.com/smittal2001/semantic-search/proto";
 
 // ─── Ingest Service ───────────────────────────────────────────────────────────
 
