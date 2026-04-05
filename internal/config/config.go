@@ -11,11 +11,11 @@ import (
 // Each service reads only the fields it needs; unused fields are ignored.
 type Config struct {
 	// ── Server ──────────────────────────────────────────────────────────────
-	GRPCAddr string // e.g. ":9090"
-	HTTPAddr string // e.g. ":8080"
+	GRPCAddr string 
+	HTTPAddr string 
 
 	// ── Postgres ────────────────────────────────────────────────────────────
-	DatabaseURL string // postgres://user:pass@host:5432/dbname
+	DatabaseURL string 
 
 	// ── Redis ───────────────────────────────────────────────────────────────
 	RedisAddr     string
@@ -28,9 +28,9 @@ type Config struct {
 
 	// ── Embed API ────────────────────────────────────────────────────────────
 	OpenAIAPIKey  string
-	EmbedModel    string // e.g. "text-embedding-3-small"
-	EmbedDims     int    // e.g. 1536
-	EmbedBatchMax int    // max texts per API call, e.g. 100
+	EmbedModel    string // "text-embedding-3-small"
+	EmbedDims     int    
+	EmbedBatchMax int    // max texts per API call
 
 	// ── Worker ──────────────────────────────────────────────────────────────
 	WorkerConcurrency int           // goroutines per pod
@@ -42,8 +42,8 @@ type Config struct {
 	JWTSecret string
 
 	// ── Internal service addresses ───────────────────────────────────────────
-	IngestServiceAddr string // e.g. "ingest-service:9090"
-	SearchServiceAddr string // e.g. "search-service:9090"
+	IngestServiceAddr string 
+	SearchServiceAddr string
 }
 
 // Load reads configuration from environment variables, returning an error if
