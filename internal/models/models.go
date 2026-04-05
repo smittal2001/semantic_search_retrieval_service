@@ -46,6 +46,6 @@ type ContextKey string
 
 const (
 	// ContextKeyTenantID is injected by the auth middleware and read by all services.
-	// Services must NEVER trust a caller-supplied tenant_id — always use this.
+	// Services must NEVER trust a caller-supplied tenant_id ALWAYS use this.
 	ContextKeyTenantID ContextKey = "tenant_id"
 )
