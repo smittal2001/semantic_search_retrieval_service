@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/yourname/semantic-search/internal/models"
+	"github.com/smittal2001/semantic-search/internal/models"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -55,8 +55,7 @@ func (v *Validator) ParseToken(tokenStr string) (*Claims, error) {
 //  2. Validates it
 //  3. Injects the tenant_id into the request context
 //
-// All downstream handlers read tenant_id from context — they never
-// trust a caller-supplied value.
+// All downstream handlers read tenant_id from context
 func (v *Validator) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -80,7 +79,7 @@ func (v *Validator) UnaryInterceptor() grpc.UnaryServerInterceptor {
 }
 
 // TenantFromCtx extracts the tenant ID injected by the auth interceptor.
-// Panics if the interceptor was not applied — this is a programming error,
+// Panics if the interceptor was not applied implying a programming error,
 // not a runtime condition.
 func TenantFromCtx(ctx context.Context) string {
 	v, ok := ctx.Value(models.ContextKeyTenantID).(string)
