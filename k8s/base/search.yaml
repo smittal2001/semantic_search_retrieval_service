@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search
+  labels:
+    app: search
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: search
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: search
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: search
+          image: semantic-search/search:latest
+          ports:
+            - containerPort: 9090
+              name: grpc
+          env:
+            - name: GRPC_ADDR
+              value: ":9090"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: url
+            - name: REDIS_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: redis_addr
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: password
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-credentials
+                  key: api_key
+            - name: EMBED_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: embed_model
+            - name: EMBED_DIMS
+              value: "1536"
+            - name: CACHE_TTL
+              value: "120s"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-credentials
+                  key: secret
+          resources:
+            # Search is CPU-bound: embedding the query + ANN index traversal
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
+            limits:
+              cpu: "2000m"
+              memory: "512Mi"
+          readinessProbe:
+            grpc:
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            grpc:
+              port: 9090
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search
+  labels:
+    app: search
+spec:
+  selector:
+    app: search
+  ports:
+    - name: grpc
+      port: 9090
+      targetPort: 9090
+  type: ClusterIP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: search-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: search
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: search-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: search
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

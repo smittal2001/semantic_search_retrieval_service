@@ -1,0 +1,75 @@
+# ── ConfigMap: non-sensitive runtime configuration ────────────────────────────
+# Values here are safe to commit to version control.
+# Sensitive values (passwords, API keys) go in Secrets below.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  aws_region: "us-east-1"
+  sqs_queue_url: "https://sqs.us-east-1.amazonaws.com/123456789012/embed-jobs.fifo"
+  redis_addr: "redis-master:6379"
+  embed_model: "text-embedding-3-small"
+---
+# ── Secret templates ──────────────────────────────────────────────────────────
+# In production use External Secrets Operator or Vault to inject these.
+# Never commit actual values — the values below are placeholders.
+#
+# To create from the command line:
+#   kubectl create secret generic postgres-credentials \
+#     --from-literal=url='postgres://user:pass@host:5432/db?sslmode=require'
+#
+#   kubectl create secret generic openai-credentials \
+#     --from-literal=api_key='sk-...'
+#
+#   kubectl create secret generic jwt-credentials \
+#     --from-literal=secret='<long-random-string>'
+#
+#   kubectl create secret generic redis-credentials \
+#     --from-literal=password='<redis-password>'
+#
+#   kubectl create secret generic aws-credentials \
+#     --from-literal=access_key_id='AKIA...' \
+#     --from-literal=secret_access_key='...'
+#     (prefer IRSA in EKS — attach IAM role to the service account instead)
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+type: Opaque
+stringData:
+  url: "REPLACE_ME"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openai-credentials
+type: Opaque
+stringData:
+  api_key: "REPLACE_ME"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jwt-credentials
+type: Opaque
+stringData:
+  secret: "REPLACE_ME"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-credentials
+type: Opaque
+stringData:
+  password: "REPLACE_ME"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-credentials
+type: Opaque
+stringData:
+  access_key_id: "REPLACE_ME"
+  secret_access_key: "REPLACE_ME"

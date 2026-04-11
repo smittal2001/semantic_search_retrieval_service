@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingest
+  labels:
+    app: ingest
+    version: "1.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ingest
+  # Rolling update: never remove a pod before its replacement is Ready.
+  # The readiness probe ensures the new pod can reach Postgres + SQS before
+  # traffic is shifted to it.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: ingest
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      # Graceful shutdown: Kubernetes sends SIGTERM and waits this long
+      # before sending SIGKILL. Must be longer than the longest in-flight
+      # request duration.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: ingest
+          image: semantic-search/ingest:latest
+          ports:
+            - containerPort: 9090
+              name: grpc
+          env:
+            - name: GRPC_ADDR
+              value: ":9090"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: url
+            - name: SQS_QUEUE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: sqs_queue_url
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: aws_region
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-credentials
+                  key: api_key
+            - name: EMBED_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: embed_model
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-credentials
+                  key: secret
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            grpc:
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            grpc:
+              port: 9090
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingest
+  labels:
+    app: ingest
+spec:
+  selector:
+    app: ingest
+  ports:
+    - name: grpc
+      port: 9090
+      targetPort: 9090
+  # ClusterIP: not exposed externally — only reachable from gateway within cluster
+  type: ClusterIP
+---
+# PodDisruptionBudget: always keep at least 1 ingest pod alive
+# during node drains and rolling deploys.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ingest-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ingest
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ingest-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ingest
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

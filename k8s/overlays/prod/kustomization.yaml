@@ -1,0 +1,50 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: semantic-search
+
+bases:
+  - ../../base
+
+# Override image tags for production (CI sets these during deploy)
+images:
+  - name: semantic-search/gateway
+    newTag: "1.0.0"
+  - name: semantic-search/ingest
+    newTag: "1.0.0"
+  - name: semantic-search/search
+    newTag: "1.0.0"
+  - name: semantic-search/worker
+    newTag: "1.0.0"
+
+# Patch production replica counts (base has dev-friendly values)
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: ingest
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: search
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: gateway
+  # Override SQS URL for prod account
+  - patch: |-
+      - op: replace
+        path: /data/sqs_queue_url
+        value: "https://sqs.us-east-1.amazonaws.com/PROD_ACCOUNT_ID/embed-jobs.fifo"
+    target:
+      kind: ConfigMap
+      name: app-config

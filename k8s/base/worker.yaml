@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: worker
+spec:
+  # Start with 0 replicas — KEDA scales based on SQS queue depth.
+  # When the queue is empty the worker scales to zero (no idle cost).
+  # When messages arrive, KEDA scales up within ~30s.
+  replicas: 0
+  selector:
+    matchLabels:
+      app: worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 2
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      # Must be longer than: SQS visibility timeout + max embed API call duration
+      # visibility=30s + embed_p99=10s + buffer=20s = 60s
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: worker
+          image: semantic-search/worker:latest
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: url
+            - name: SQS_QUEUE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: sqs_queue_url
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: aws_region
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-credentials
+                  key: api_key
+            - name: EMBED_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: embed_model
+            - name: EMBED_DIMS
+              value: "1536"
+            - name: WORKER_CONCURRENCY
+              value: "10"
+            - name: WORKER_POLL_WAIT
+              value: "20"
+            - name: WORKER_VISIBILITY
+              value: "30"
+            - name: SHUTDOWN_TIMEOUT
+              value: "55s"
+            # JWT_SECRET not needed by worker (it doesn't receive external requests)
+            # but required by config.Load() — inject a dummy or refactor config.
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-credentials
+                  key: secret
+          resources:
+            # Workers hold vectors in memory during processing.
+            # Each 1536-dim float32 vector = 6KB. 10 concurrent = ~60KB.
+            # The larger cost is pgx connection buffers.
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          # Workers have no HTTP port — liveness via process health only.
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "exit 0"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop: ["ALL"]
+---
+# KEDA ScaledObject: scale the worker Deployment based on SQS queue depth.
+#
+# Scaling math:
+#   Each worker pod processes ~10 msgs/sec (10 concurrency × ~1s per embed).
+#   At targetQueueLength=50: one pod per 50 queued messages.
+#   At 1000 messages → 20 pods → processes the backlog in ~5 seconds.
+#
+# Requires KEDA v2 installed in the cluster:
+#   helm install keda kedacore/keda --namespace keda --create-namespace
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-scaledobject
+spec:
+  scaleTargetRef:
+    name: worker
+  # Scale to zero when queue is empty (cost savings)
+  minReplicaCount: 0
+  maxReplicaCount: 20
+  # Cooldown: wait 60s before scaling down to avoid thrashing
+  cooldownPeriod: 60
+  # Scale up immediately when messages appear
+  pollingInterval: 15
+  triggers:
+    - type: aws-sqs-queue
+      metadata:
+        queueURL: "$(SQS_QUEUE_URL)"
+        # One pod per 50 queued messages
+        targetQueueLength: "50"
+        awsRegion: "$(AWS_REGION)"
+      authenticationRef:
+        name: keda-aws-credentials
+---
+# KEDA TriggerAuthentication: provides AWS credentials to the KEDA scaler.
+# In production use IRSA (IAM Roles for Service Accounts) instead of static keys.
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-aws-credentials
+spec:
+  secretTargetRef:
+    - parameter: awsAccessKeyID
+      name: aws-credentials
+      key: access_key_id
+    - parameter: awsSecretAccessKey
+      name: aws-credentials
+      key: secret_access_key
