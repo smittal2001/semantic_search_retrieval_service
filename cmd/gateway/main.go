@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/smittal2001/semantic-search/internal/auth"
-	"github.com/smittal2001/semantic-search/internal/config"
-	pb "github.com/smittal2001/semantic-search/proto"
+	"github.com/yourname/semantic-search/internal/auth"
+	"github.com/yourname/semantic-search/internal/config"
+	pb "github.com/yourname/semantic-search/proto"
 )
 
 // Gateway routes REST requests to gRPC backend services.
