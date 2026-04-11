@@ -1,4 +1,4 @@
-module github.com/yourname/semantic-search
+module github.com/smittal2001/semantic-search
 
 go 1.22
 

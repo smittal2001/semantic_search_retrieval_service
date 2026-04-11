@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/yourname/semantic-search/internal/auth"
+	"github.com/smittal2001/semantic-search/internal/auth"
 )
 
 func main() {

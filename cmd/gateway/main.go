@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/yourname/semantic-search/internal/auth"
-	"github.com/yourname/semantic-search/internal/config"
-	pb "github.com/yourname/semantic-search/proto"
+	"github.com/smittal2001/semantic-search/internal/auth"
+	"github.com/smittal2001/semantic-search/internal/config"
+	pb "github.com/smittal2001/semantic-search/proto"
 )
 
 // Gateway routes REST requests to gRPC backend services.
@@ -40,7 +40,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Dial internal gRPC services (insecure — mTLS handled by service mesh in prod)
 	ingestConn, err := grpc.NewClient(cfg.IngestServiceAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -98,9 +97,9 @@ func main() {
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
-// authMiddleware validates the Bearer JWT, extracts tenant_id from claims,
+// authMiddleware validates the Bearer JWT, extracts tenant_id from claims
 // and injects it into the request context. Downstream handlers read it via
-// auth.TenantFromCtx — they never trust the caller to supply tenant_id.
+// auth.TenantFromCtx they never trust the caller to supply tenant_id.
 func (g *Gateway) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -220,7 +219,7 @@ type tokenKey struct{}
 
 // grpcCtx builds a context with the JWT forwarded as gRPC metadata.
 // The downstream gRPC services re-validate the token and extract tenant_id
-// themselves — they never trust the gateway to supply it in plaintext.
+// themselves they never trust the gateway to supply it in plaintext.
 func grpcCtx(r *http.Request) context.Context {
 	token, _ := r.Context().Value(tokenKey{}).(string)
 	md := metadata.Pairs("authorization", "Bearer "+token)

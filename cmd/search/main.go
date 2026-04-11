@@ -12,12 +12,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/yourname/semantic-search/internal/auth"
-	"github.com/yourname/semantic-search/internal/cache"
-	"github.com/yourname/semantic-search/internal/config"
-	"github.com/yourname/semantic-search/internal/db"
-	"github.com/yourname/semantic-search/internal/embed"
-	pb "github.com/yourname/semantic-search/proto"
+	"github.com/smittal2001/semantic-search/internal/auth"
+	"github.com/smittal2001/semantic-search/internal/cache"
+	"github.com/smittal2001/semantic-search/internal/config"
+	"github.com/smittal2001/semantic-search/internal/db"
+	"github.com/smittal2001/semantic-search/internal/embed"
+	pb "github.com/smittal2001/semantic-search/proto"
 )
 
 const (
@@ -37,12 +37,12 @@ type searchServer struct {
 //
 //  1. Embed the query string using the SAME model as ingestion
 //     (mismatched models produce meaningless cosine distances)
-//  2. Check Redis cache — return immediately on hit
+//  2. Check Redis cache and return immediately on hit
 //  3. Run ANN cosine similarity search in pgvector
 //  4. Cache the results for subsequent identical queries
 //  5. Return ranked results to caller
 //
-// Redis is NOT on the critical path — if it is unavailable, the search
+// Redis is NOT on the critical path if it is unavailable, the search
 // falls through to Postgres silently.
 func (s *searchServer) Search(ctx context.Context, req *pb.SearchRequest) (*pb.SearchResponse, error) {
 	tenantID := auth.TenantFromCtx(ctx)
@@ -60,7 +60,7 @@ func (s *searchServer) Search(ctx context.Context, req *pb.SearchRequest) (*pb.S
 	}
 
 	// ── Step 1: Embed the query ────────────────────────────────────────────
-	// The embed call is on the hot path — it adds ~50-200ms of latency.
+	// The embed call is on the hot path it adds ~50-200ms of latency.
 	// Cache hit (step 2) skips this; in practice most queries are unique.
 	queryVec, err := s.embedClient.Embed(ctx, req.Query)
 	if err != nil {
@@ -77,7 +77,7 @@ func (s *searchServer) Search(ctx context.Context, req *pb.SearchRequest) (*pb.S
 
 	// ── Step 3: ANN search via pgvector ───────────────────────────────────
 	// The <=> cosine distance operator is accelerated by the HNSW index.
-	// tenant_id filter is applied inside SearchSimilar — cross-tenant
+	// tenant_id filter is applied inside SearchSimilar cross-tenant
 	// leakage is structurally impossible.
 	results, err := s.db.SearchSimilar(ctx, tenantID, queryVec, limit)
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *searchServer) Search(ctx context.Context, req *pb.SearchRequest) (*pb.S
 	}
 
 	// ── Step 4: Cache results ─────────────────────────────────────────────
-	// Best-effort — a cache write failure does not fail the search.
+	// Best-effort a cache write failure does not fail the search.
 	if err := s.cache.SetResults(ctx, tenantID, queryVec, results); err != nil {
 		slog.Warn("cache set failed", "err", err)
 	}
@@ -137,9 +137,9 @@ func main() {
 	redisCache := cache.New(cfg.RedisAddr, cfg.RedisPassword, cfg.CacheTTL)
 	defer redisCache.Close()
 
-	// Verify Redis is reachable (non-fatal — search works without it)
+	// Verify Redis is reachable (non-fatal as search works without it)
 	if err := redisCache.Ping(ctx); err != nil {
-		slog.Warn("redis not reachable — cache disabled", "err", err)
+		slog.Warn("redis not reachable - cache disabled", "err", err)
 	}
 
 	// Create embed client

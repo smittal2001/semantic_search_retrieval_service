@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/yourname/semantic-search/internal/config"
-	"github.com/yourname/semantic-search/internal/db"
-	"github.com/yourname/semantic-search/internal/embed"
-	"github.com/yourname/semantic-search/internal/queue"
+	"github.com/smittal2001/semantic-search/internal/config"
+	"github.com/smittal2001/semantic-search/internal/db"
+	"github.com/smittal2001/semantic-search/internal/embed"
+	"github.com/smittal2001/semantic-search/internal/queue"
 )
 
 // Worker holds the dependencies for the embed consumer loop.
@@ -39,7 +39,7 @@ func (w *Worker) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			slog.Info("shutdown: draining in-flight goroutines")
-			// Fill the semaphore to capacity — blocks until every goroutine
+			// Fill the semaphore to capacity blocks until every goroutine
 			// releases its slot by returning from process().
 			for i := 0; i < cap(sem); i++ {
 				sem <- struct{}{}
@@ -56,7 +56,7 @@ func (w *Worker) Run(ctx context.Context) {
 		messages, err := w.queue.Receive(ctx, 10, w.cfg.WorkerPollWait)
 		if err != nil {
 			if ctx.Err() != nil {
-				return // context cancelled — normal shutdown path
+				return // context cancelled normal shutdown path
 			}
 			slog.Error("sqs receive failed, backing off", "err", err)
 			time.Sleep(2 * time.Second)
@@ -94,7 +94,7 @@ type sqsMessage struct {
 //  2. Fetch the document text from Postgres
 //  3. Call the embedding API (with retry + rate limiting)
 //  4. Write the vector to pgvector and flip status to 'indexed'
-//  5. ACK the message (DeleteMessage) — ONLY after a successful write
+//  5. ACK the message (DeleteMessage) ONLY after a successful write
 //
 // If any step fails without exhausting retries, the function returns without
 // ACKing. The message becomes visible again after the SQS visibility timeout
@@ -104,8 +104,8 @@ func (w *Worker) process(ctx context.Context, m sqsMessage) {
 	// ── Parse ──────────────────────────────────────────────────────────────
 	job, err := queue.ParseJob(*(m.inner))
 	if err != nil {
-		slog.Error("parse job failed — poisoning message", "err", err)
-		// Bad message format will never succeed; delete it immediately
+		slog.Error("parse job failed poisoning message", "err", err)
+		// Bad message format will never succeed delete immediately
 		// to avoid it blocking the queue forever.
 		_ = w.queue.Delete(ctx, *m.inner.GetReceiptHandle())
 		return
@@ -116,7 +116,7 @@ func (w *Worker) process(ctx context.Context, m sqsMessage) {
 	// ── Fetch text ─────────────────────────────────────────────────────────
 	text, err := w.db.GetDocumentText(ctx, job.DocumentID)
 	if err != nil {
-		slog.Warn("document not found — deleting job", "doc_id", job.DocumentID, "err", err)
+		slog.Warn("document not found deleting job", "doc_id", job.DocumentID, "err", err)
 		// Document was deleted after the job was queued; safe to discard.
 		_ = w.queue.Delete(ctx, *m.inner.GetReceiptHandle())
 		return
@@ -125,18 +125,18 @@ func (w *Worker) process(ctx context.Context, m sqsMessage) {
 	// ── Embed ──────────────────────────────────────────────────────────────
 	// embedClient handles rate limiting (token bucket) and exponential backoff
 	// on 429 / 5xx responses. If all retries are exhausted, it returns an error
-	// and the SQS message is NOT acknowledged — it will be retried.
+	// and the SQS message is NOT acknowledged it will be retried.
 	vector, err := w.embedClient.Embed(ctx, text)
 	if err != nil {
 		slog.Error("embed failed, leaving message in queue for retry",
 			"doc_id", job.DocumentID, "err", err)
-		return // do NOT ACK — let SQS redeliver after visibility timeout
+		return // do NOT ACK let SQS redeliver after visibility timeout
 	}
 
 	// ── Write vector ───────────────────────────────────────────────────────
 	// This is an atomic UPDATE that sets embedding + status = 'indexed'.
 	// If this succeeds but the DeleteMessage call below crashes, the message
-	// redelivers and we run SetEmbedding again — safe because it's an upsert.
+	// redelivers and we run SetEmbedding again safe because it's an upsert.
 	if err := w.db.SetEmbedding(ctx, job.DocumentID, vector, w.embedClient.Model()); err != nil {
 		slog.Error("write embedding failed, leaving message in queue",
 			"doc_id", job.DocumentID, "err", err)
