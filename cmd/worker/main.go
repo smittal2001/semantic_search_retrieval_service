@@ -126,7 +126,10 @@ func (w *Worker) process(ctx context.Context, m sqsMessage) {
 	// embedClient handles rate limiting (token bucket) and exponential backoff
 	// on 429 / 5xx responses. If all retries are exhausted, it returns an error
 	// and the SQS message is NOT acknowledged it will be retried.
-	vector, err := w.embedClient.Embed(ctx, text)
+
+	//  goroutine drops text into shared batch, blocks until flush
+	vector, err := w.batcher.Add(ctx, text)
+
 	if err != nil {
 		slog.Error("embed failed, leaving message in queue for retry",
 			"doc_id", job.DocumentID, "err", err)
@@ -192,6 +195,11 @@ func main() {
 	worker := &Worker{
 		db:          database,
 		queue:       q,
+		batcher: embed.NewBatcher(
+			embedClient,
+			50*time.Millisecond,  // collection window
+			100,                  // max batch size
+    	),
 		embedClient: embedClient,
 		cfg:         cfg,
 	}
